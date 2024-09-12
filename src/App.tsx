@@ -6,8 +6,7 @@ import Stat from './pages/Stat';
 import React, { useEffect, useState } from 'react';
 import './index.css';
 import { Button } from "@material-tailwind/react";
-import Arrow from './icons/Arrow';
-import {highVoltage, notcoin, notcoin3, notcoin4, notcoin5, notcoin6, notcoin7, trophy} from './images';
+import {highVoltage, notcoin, notcoin3, notcoin4, notcoin5, notcoin6, notcoin7} from './images';
 import axios from 'axios';
 
 interface TelegramUser {
@@ -221,10 +220,10 @@ useEffect(() => {
             <img src={images[currentImageIndex]} width={44} height={44} alt="notcoin" />
             <span className="ml-2">{points.toLocaleString()}</span>
           </div>
-          <div className="text-base mt-2 flex items-center">
+          {/* <div className="text-base mt-2 flex items-center">
             <img src={trophy} width={24} height={24} alt="trophy" />
             <span className="ml-1">Gold <Arrow size={18} className="ml-0 mb-1 inline-block" /></span>
-          </div>
+          </div> */}
         </div>
 
         <div className="fixed bottom-0 left-0 w-full px-4 pb-8 z-10">
@@ -294,8 +293,8 @@ useEffect(() => {
 
        
           <div className="flex-grow flex items-center justify-center">
-          <div className="relative mt-4" onClick={handleClick}>
-            <img src={images[currentImageIndex]} width={400} height={400} alt="notcoin" />
+          <div className="relative" onClick={handleClick}>
+            <img src={images[currentImageIndex]} width={300} height={300} alt="notcoin" />
             {clicks.map((click) => (
               <div
                 key={click.id}
