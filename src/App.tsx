@@ -45,7 +45,7 @@ const Home = () => {
   const [clicks, setClicks] = useState<{ id: number, x: number, y: number }[]>([]);
   const [pointsToAdd, setPointsToAdd] = useState(0);
   const [isFarming, setIsFarming] = useState(false); // Farming set
-  const [timeLeft, setTimeLeft] = useState(7 * 60 * 60); // 7 hours in seconds
+  const [timeLeft, setTimeLeft] = useState(5 * 60); // 7 hours in seconds
   const [energyToReduce, setEnergyToReduce] = useState(0);
   const [energy, setEnergy] = useState(0);
   const [clickCount, setClickCount] = useState(0); // Track number of clicks
@@ -146,7 +146,7 @@ const startFarming = async () => {
 
       if (response.data && response.data.farmingStartTime) {
         setIsFarming(true);
-        setTimeLeft(7 * 60 * 60); // reset timer
+        setTimeLeft(5 * 60); // Set timer to 7 hours
 
         // Store farming start time in local storage to persist across page refreshes
         localStorage.setItem('farmingStartTime', response.data.farmingStartTime);
@@ -162,14 +162,14 @@ const calculateRemainingTime = (startTime: string) => {
   const now = new Date();
   const farmingStartTime = new Date(startTime);
   const elapsedSeconds = Math.floor((now.getTime() - farmingStartTime.getTime()) / 1000);
-  const totalFarmingSeconds = 7 * 60 * 60; // 7 hours in seconds
+  const totalFarmingSeconds = 5 * 60; // 7 hours in seconds
 
   return totalFarmingSeconds - elapsedSeconds;
 };
 
 // useEffect to handle farming timer and persist across refreshes
 useEffect(() => {
-  let timer: NodeJS.Timeout | null = null; // Explicitly define the type
+  let timer: NodeJS.Timeout | null = null;
   const telegramId = user?.telegramId;
 
   // Function to fetch farming status from the server
@@ -189,6 +189,7 @@ useEffect(() => {
           } else {
             // Farming is finished
             setIsFarming(false);
+            await updateFarmingPoints(); // Call the function to update points when time runs out
           }
         } else {
           setIsFarming(false); // No farming session active
@@ -203,27 +204,19 @@ useEffect(() => {
   fetchFarmingStatus();
 
   if (isFarming && timeLeft > 0) {
-    timer = setInterval(async () => {
+    timer = setInterval(() => {
       setTimeLeft(prev => prev - 1);
-
-      // Update points every second
-      if (telegramId) {
-        try {
-          const updateResponse = await axios.post('https://back-w4s1.onrender.com/updateFarmingPoints', { telegramId });
-          setPoints(updateResponse.data.points);
-        } catch (error) {
-          console.error('Error updating farming points:', error);
-        }
-      }
     }, 1000);
   }
 
-  // Stop farming when time is up
-  if (timeLeft <= 0) {
+  // Stop farming and update points when time is up
+  if (timeLeft <= 0 && isFarming) {
     setIsFarming(false); // Clear farming session when time ends
     if (timer) {
       clearInterval(timer);
     }
+    // Call the function to update points
+    updateFarmingPoints();
   }
 
   return () => {
@@ -233,7 +226,18 @@ useEffect(() => {
   };
 }, [isFarming, timeLeft, user?.telegramId]);
 
-
+// Function to update farming points once 7 hours have passed
+const updateFarmingPoints = async () => {
+  const telegramId = user?.telegramId;
+  if (telegramId) {
+    try {
+      const updateResponse = await axios.post('https://back-w4s1.onrender.com/updateFarmingPoints', { telegramId });
+      setPoints(updateResponse.data.points); // Update points after 7 hours
+    } catch (error) {
+      console.error('Error updating farming points:', error);
+    }
+  }
+};
 
 
   // useEffect hook to restore energy over time
