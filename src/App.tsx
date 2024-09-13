@@ -50,8 +50,12 @@ const Home = () => {
   const [energy, setEnergy] = useState(0);
   const [clickCount, setClickCount] = useState(0); // Track number of clicks
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // Track current image index
-  const [farmingPoints, setFarmingPoints] = useState(0); // State for the real-time farming points
-
+  //const [farmingPoints, setFarmingPoints] = useState(0.1); // State for the real-time farming points
+  const [farmingPoints, setFarmingPoints] = useState<number>(() => {
+    // Retrieve farming points from local storage on component load
+    const storedPoints = localStorage.getItem('farmingPoints');
+    return storedPoints ? parseFloat(storedPoints) : 0.1;
+  });
   const handleClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (energy - energyToReduce < 0) {
       return;
@@ -137,6 +141,7 @@ const Home = () => {
     }
   };
 
+
 // Function to start farming
 const startFarming = async () => {
   if (user) {
@@ -148,10 +153,11 @@ const startFarming = async () => {
       if (response.data && response.data.farmingStartTime) {
         setIsFarming(true);
         setTimeLeft(5 * 60); // Set timer to 5 minutes for testing
-        setFarmingPoints(0); // Reset farming points on start
+        setFarmingPoints(0.1); // Reset farming points on start
 
         // Store farming start time in local storage to persist across page refreshes
         localStorage.setItem('farmingStartTime', response.data.farmingStartTime);
+        localStorage.setItem('farmingPoints', '0.1'); // Reset points in local storage
       }
     } catch (error) {
       console.error('Error starting farming:', error);
@@ -169,6 +175,14 @@ const calculateRemainingTime = (startTime: string) => {
   return totalFarmingSeconds - elapsedSeconds;
 };
 
+// Function to calculate the farming points based on elapsed time
+const calculateFarmingPoints = (startTime: string) => {
+  const now = new Date();
+  const farmingStartTime = new Date(startTime);
+  const elapsedSeconds = Math.floor((now.getTime() - farmingStartTime.getTime()) / 1000);
+  return (elapsedSeconds * 0.1); // 0.1 points per second
+};
+
 // useEffect to handle farming timer and persist across refreshes
 useEffect(() => {
   let timer: NodeJS.Timeout | null = null;
@@ -183,11 +197,16 @@ useEffect(() => {
 
         if (serverIsFarming && farmingStartTime) {
           const remainingTime = calculateRemainingTime(farmingStartTime);
+          const currentFarmingPoints = calculateFarmingPoints(farmingStartTime);
 
           // If there is still time left, continue farming
           if (remainingTime > 0) {
             setTimeLeft(remainingTime);
+            setFarmingPoints(currentFarmingPoints);
             setIsFarming(true);
+
+            // Save the updated farming points in localStorage
+            localStorage.setItem('farmingPoints', currentFarmingPoints.toFixed(1));
           } else {
             // Farming is finished
             setIsFarming(false);
@@ -208,7 +227,11 @@ useEffect(() => {
   if (isFarming && timeLeft > 0) {
     timer = setInterval(() => {
       setTimeLeft(prev => prev - 1);
-      setFarmingPoints(prev => prev + 0.1); // Increment farming points every second
+      setFarmingPoints(prev => {
+        const updatedPoints = prev + 0.1;
+        localStorage.setItem('farmingPoints', updatedPoints.toFixed(1)); // Persist updated points
+        return updatedPoints;
+      });
     }, 1000);
   }
 
