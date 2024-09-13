@@ -6,7 +6,7 @@ import Stat from './pages/Stat';
 import React, { useEffect, useState } from 'react';
 import './index.css';
 import { Button } from "@material-tailwind/react";
-import {highVoltage, notcoin, notcoin3, notcoin4, notcoin5, notcoin6, notcoin7} from './images';
+import {highVoltage, notcoin, notcoin3, notcoin4, notcoin5, notcoin6, notcoin7, trophy} from './images';
 import axios from 'axios';
 
 interface TelegramUser {
@@ -136,59 +136,91 @@ const Home = () => {
     }
   };
 
-  //Start Farming
-  const startFarming = async () => {
-    if (user)
+  // Function to start farming
+const startFarming = async () => {
+  if (user) {
     try {
-        const response = await axios.post('https://back-w4s1.onrender.com/startFarming', { 
-          telegramId: user.telegramId });
-        if (response.data) {
-            setIsFarming(true);
-            setTimeLeft(7 * 60 * 60); // reset timer
-        }
+      const response = await axios.post('https://back-w4s1.onrender.com/startFarming', { 
+        telegramId: user.telegramId 
+      });
+
+      if (response.data && response.data.farmingStartTime) {
+        setIsFarming(true);
+        setTimeLeft(7 * 60 * 60); // reset timer
+
+        // Store farming start time in local storage to persist across page refreshes
+        localStorage.setItem('farmingStartTime', response.data.farmingStartTime);
+      }
     } catch (error) {
-        console.error('Error starting farming:', error);
+      console.error('Error starting farming:', error);
     }
+  }
 };
 
-//useEffect for timer
+// Function to calculate remaining time based on farming start time
+const calculateRemainingTime = (startTime: string) => {
+  const now = new Date();
+  const farmingStartTime = new Date(startTime);
+  const elapsedSeconds = Math.floor((now.getTime() - farmingStartTime.getTime()) / 1000);
+  const totalFarmingSeconds = 7 * 60 * 60; // 7 hours in seconds
+
+  return totalFarmingSeconds - elapsedSeconds;
+};
+
+// useEffect to handle farming timer and persist across refreshes
 useEffect(() => {
   let timer: NodeJS.Timeout | null = null; // Explicitly define the type
-
-  // Extract telegramId from user state
   const telegramId = user?.telegramId;
 
-  if (isFarming && timeLeft > 0) {
-      timer = setInterval(async () => {
-          // Update time left
-          setTimeLeft(prev => prev - 1);
+  // Check if farming is already in progress from localStorage
+  const storedFarmingStartTime = localStorage.getItem('farmingStartTime');
+  
+  if (storedFarmingStartTime) {
+    const remainingTime = calculateRemainingTime(storedFarmingStartTime);
+    
+    // If there is still time left, continue farming
+    if (remainingTime > 0) {
+      setTimeLeft(remainingTime);
+      setIsFarming(true);
+    } else {
+      // Farming is finished, clear farming data
+      localStorage.removeItem('farmingStartTime');
+      setIsFarming(false);
+    }
+  }
 
-          // Update points every second
-          if (telegramId) { // Check if telegramId exists
-              try {
-                  const updateResponse = await axios.post('https://back-w4s1.onrender.com/updateFarmingPoints', { telegramId });
-                  setPoints(updateResponse.data.points);
-              } catch (error) {
-                  console.error('Error updating farming points:', error);
-              }
-          }
-      }, 1000);
+  if (isFarming && timeLeft > 0) {
+    timer = setInterval(async () => {
+      setTimeLeft(prev => prev - 1);
+
+      // Update points every second
+      if (telegramId) {
+        try {
+          const updateResponse = await axios.post('https://back-w4s1.onrender.com/updateFarmingPoints', { telegramId });
+          setPoints(updateResponse.data.points);
+        } catch (error) {
+          console.error('Error updating farming points:', error);
+        }
+      }
+    }, 1000);
   }
 
   // Stop farming when time is up
   if (timeLeft <= 0) {
-      setIsFarming(false);
-      if (timer) {
-          clearInterval(timer); // Clear the timer
-      }
+    setIsFarming(false);
+    localStorage.removeItem('farmingStartTime'); // Clear local storage when farming ends
+    if (timer) {
+      clearInterval(timer);
+    }
   }
 
   return () => {
-      if (timer) {
-          clearInterval(timer); // Ensure timer is cleared on component unmount
-      }
+    if (timer) {
+      clearInterval(timer); // Ensure timer is cleared on component unmount
+    }
   };
-}, [isFarming, timeLeft, user?.telegramId]); // Add user?.telegramId to dependencies
+}, [isFarming, timeLeft, user?.telegramId]);
+
 
 
   // useEffect hook to restore energy over time
