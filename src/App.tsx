@@ -172,22 +172,35 @@ useEffect(() => {
   let timer: NodeJS.Timeout | null = null; // Explicitly define the type
   const telegramId = user?.telegramId;
 
-  // Check if farming is already in progress from localStorage
-  const storedFarmingStartTime = localStorage.getItem('farmingStartTime');
-  
-  if (storedFarmingStartTime) {
-    const remainingTime = calculateRemainingTime(storedFarmingStartTime);
-    
-    // If there is still time left, continue farming
-    if (remainingTime > 0) {
-      setTimeLeft(remainingTime);
-      setIsFarming(true);
-    } else {
-      // Farming is finished, clear farming data
-      localStorage.removeItem('farmingStartTime');
-      setIsFarming(false);
+  // Function to fetch farming status from the server
+  const fetchFarmingStatus = async () => {
+    if (telegramId) {
+      try {
+        const response = await axios.post('https://back-w4s1.onrender.com/getFarmingStatus', { telegramId });
+        const { farmingStartTime, isFarming: serverIsFarming } = response.data;
+
+        if (serverIsFarming && farmingStartTime) {
+          const remainingTime = calculateRemainingTime(farmingStartTime);
+
+          // If there is still time left, continue farming
+          if (remainingTime > 0) {
+            setTimeLeft(remainingTime);
+            setIsFarming(true);
+          } else {
+            // Farming is finished
+            setIsFarming(false);
+          }
+        } else {
+          setIsFarming(false); // No farming session active
+        }
+      } catch (error) {
+        console.error('Error fetching farming status:', error);
+      }
     }
-  }
+  };
+
+  // Fetch farming status on component mount
+  fetchFarmingStatus();
 
   if (isFarming && timeLeft > 0) {
     timer = setInterval(async () => {
@@ -207,8 +220,7 @@ useEffect(() => {
 
   // Stop farming when time is up
   if (timeLeft <= 0) {
-    setIsFarming(false);
-    localStorage.removeItem('farmingStartTime'); // Clear local storage when farming ends
+    setIsFarming(false); // Clear farming session when time ends
     if (timer) {
       clearInterval(timer);
     }
@@ -220,6 +232,7 @@ useEffect(() => {
     }
   };
 }, [isFarming, timeLeft, user?.telegramId]);
+
 
 
 
